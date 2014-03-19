@@ -1,0 +1,68 @@
+
+<HTML>
+<HEAD>
+<meta name="viewport" content="width=default-width, initial-scale=1" />
+<script src="jquery-1.8.2.min.js"></script>
+<script src="huetouch.js"></script>
+<script src="hue.js"></script>
+
+<SCRIPT>
+
+try{
+   jQuery.noConflict();
+ } catch(e){};
+
+var lights = new Array(); 
+var light_id = 1; 
+
+jQuery(document).ready(function() 
+{
+	//redirect console to a div
+	//console.log = function(message) {jQuery('#debugDiv').append('<p>' + message + '</p>');};
+	//console.error = console.debug = console.info =  console.log
+
+	//get our hue settings
+	if(getSettings())
+	{
+		$( "div.message" ).text("Hub found: " + settings.ip);
+		console.log('Settings: ');
+		console.log(settings);
+		hueDevices(settings.ip, settings.username)
+	}
+	else
+	{
+		//Tell user to press HUE HUB
+		$( "div.message" ).text("Please press connect on your hue hub");
+		//CONNECT and create settings.
+		hueFindRange('10.0.0.10', false, 0, true);
+	}
+	
+
+	jQuery('input.reset-ip').onclick = function () 
+	{
+		console.log('Reset settings...');
+		settings = null;
+		localStorage.clear();
+		connectCount 	= 0;
+		currentIPRange 	= 1;
+		stopSearching 	= false;	
+
+		hueFindNext();
+	}
+  
+});
+
+
+</SCRIPT>
+
+<TITLE>RaspHue Settings</TITLE>
+</HEAD>
+<BODY>
+		<div>
+			<input type="submit" value="reset-ip" class="reset-ip">
+			<div class="message"></div>
+		</div>
+		
+		<div id="debugDiv"></div>
+<BODY>
+</HTML>

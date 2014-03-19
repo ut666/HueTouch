@@ -1,0 +1,214 @@
+
+<HTML>
+<HEAD>
+<meta name="viewport" content="width=default-width, initial-scale=1" />
+<script src="jquery-1.8.2.min.js"></script>
+<script src="huetouch.js"></script>
+<script src="hue.js"></script>
+
+<SCRIPT>
+
+try{
+   jQuery.noConflict();
+ } catch(e){};
+
+var lights = new Array(); 
+var light_id = 1; 
+
+jQuery(document).ready(function() 
+{
+	//redirect console to a div
+	//console.log = function(message) {jQuery('#debugDiv').append('<p>' + message + '</p>');};
+	//console.error = console.debug = console.info =  console.log
+
+	//get our hue settings
+	if(getSettings())
+	{
+		console.log('Settings: ');
+		console.log(settings);
+		hueDevices(settings.ip, settings.username)
+	}
+	/*else
+	{
+		//Tell user to press HUE HUB
+		//CONNECT and create settings.
+		hueFindRange('10.0.0.10', false, 0, true);
+	}*/
+	
+	//yuckity, hack to wait for async calls to finish
+	setTimeout(create_lights, 100);
+	setTimeout(update_ui, 200);
+	
+	//init our huetouch widget
+	jQuery("#colPicker").hueTouch({width: 300});
+
+	//mousemove event, only if within an acceptable delta time
+	var sliderTmp = new Date();
+	jQuery("#colPicker").on('mousemove', function( event )
+	{
+		var slider_value = jQuery(this).val();
+	    if((new Date)-sliderTmp > 100)
+		{
+			sliderTmp = new Date();	
+			colhsl = jQuery.hueTouch("#colPicker").hsl;
+			onoff = jQuery.hueTouch("#colPicker").switchONOFF;
+			
+			hue = Math.floor( colhsl[0] * 65535.0);
+			sat = Math.floor( colhsl[1] * 255.0);
+			bri = Math.floor( colhsl[2] * 255.0);
+
+			lights[light_id].state.hue = hue;
+			lights[light_id].state.sat = sat;
+			lights[light_id].state.bri = bri;
+			lights[light_id].state.on = onoff;
+
+			if(onoff == 1)
+			{		
+				eventMode = jQuery.hueTouch("#colPicker").eventMode;
+				if(eventMode == SLIDER_EVENT)
+				{
+					hueColor(settings.ip, settings.username, light_id, bri, hue, sat);
+				}
+			}	
+		}
+	});
+	//mouse up events
+	jQuery("#colPicker").on('mouseup', function( event )
+	{
+		colhsl = jQuery.hueTouch("#colPicker").hsl;
+		onoff = jQuery.hueTouch("#colPicker").switchONOFF;
+			
+		hue = Math.floor( colhsl[0] * 65535.0);
+		sat = Math.floor( colhsl[1] * 255.0);
+		bri = Math.floor( colhsl[2] * 255.0);
+
+		lights[light_id].state.hue = hue;
+		lights[light_id].state.sat = sat;
+		lights[light_id].state.bri = bri;
+		lights[light_id].state.on = onoff;
+	
+		eventMode = jQuery.hueTouch("#colPicker").eventMode;
+		if(eventMode == BUTTON_EVENT)
+		{
+			if(onoff == true)
+			{
+				hueColor(settings.ip, settings.username, light_id, bri, hue, sat);
+			}
+			else
+			{
+				hueSwitchLight(settings.ip, settings.username, light_id, onoff);
+			}
+		}
+		else
+		{
+			if(onoff == 1)
+			{		
+				eventMode = jQuery.hueTouch("#colPicker").eventMode;
+				if(eventMode == SLIDER_EVENT)
+				{
+					hueColor(settings.ip, settings.username, light_id, bri, hue, sat);
+				}
+			}	
+		}
+	});
+	//load scene1 event
+	jQuery("#colPicker").on('scene1', function(event)
+	{
+		console.log( "User clicked on 'scene1.'" );
+
+		var retrievedObject = localStorage.getItem('scene1');
+		console.log('scene1: ', JSON.parse(retrievedObject));
+		console.log('getSettings ::'+ (retrievedObject != null));
+		if(retrievedObject != null)
+		{
+			console.log( "Updating..." );
+
+			scene1 = JSON.parse(retrievedObject);
+			
+			lights[light_id].state.hue = scene1.hue;
+			lights[light_id].state.sat = scene1.sat;
+			lights[light_id].state.bri = scene1.bri;
+			lights[light_id].state.on = true;
+
+			update_ui();
+			update_light();
+		}	
+	});
+	//load scene2 event
+	jQuery("#colPicker").on('scene2', function()
+	{
+		console.log( "User clicked on 'scene2.'" );
+	});
+	//save scene 1
+	jQuery("#colPicker").on('saveScene1', function()
+	{
+		var scene1 = { 'hue': lights[light_id].state.hue, 
+					   'sat': lights[light_id].state.sat,
+					   'bri': lights[light_id].state.bri
+					   };
+					   
+		localStorage.setItem('scene1', JSON.stringify(scene1));	
+		console.log('Save scene1 :: ');
+		console.log(scene1);
+	});
+	//save scene 2
+	jQuery("#colPicker").on('saveScene2', function()
+	{
+		console.log( "User saved 'scene2.'" );
+	});	
+});
+
+function create_lights()
+{
+	var id = 0;
+	jQuery.each(lights, function(key, light) 
+	{
+		id++;
+		console.log('Light: ');
+		console.log(light);
+		
+		newButton = document.createElement('input');
+		newButton.type = 'button';
+		newButton.value = light.name;
+		newButton.onclick = function () 
+		{
+			console.log("light: " + key);
+			light_id  = key;
+			update_ui();
+		};	
+		jQuery('.lights').append(newButton);		
+	});
+}
+function update_light()
+{
+	hueColor(settings.ip, settings.username, light_id, lights[light_id].state.bri, lights[light_id].state.hue, lights[light_id].state.sat);
+}
+//update the ui when we change light
+function update_ui()
+{
+	hue = lights[light_id].state.hue / 65535.0;
+	sat = lights[light_id].state.sat / 255.0;
+	bri = lights[light_id].state.bri / 255.0;
+	on = lights[light_id].state.on;
+
+	jQuery.hueTouch("#colPicker").setHSL([hue, sat, bri]);
+	jQuery.hueTouch("#colPicker").setON(on);
+}
+
+</SCRIPT>
+
+<TITLE>RaspHue Light Control</TITLE>
+</HEAD>
+<BODY>
+		<div>
+			<div id="color" name="color" style="width:200; padding:4px; border:3px solid; border-radius:25px; border-color:#4d4d4d;">
+			<div id="colPicker"></div>
+			</div>
+			<div style="width:200; padding:4px;">
+			<div class="lights"></div>
+			</div>
+		</div>
+		
+		<div id="debugDiv"></div>
+<BODY>
+</HTML>
