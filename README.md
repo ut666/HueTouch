@@ -1,7 +1,7 @@
 HueTouch
 ========
 
-**WARNING: WORK IN PROGRESS**
+**WARNING: WORK IN PROGRESS...**
 
 Philips Hue HTML5 touch friendly widget.
 
